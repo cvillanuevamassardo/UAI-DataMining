@@ -1,0 +1,80 @@
+---
+title: "Soccer"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction to progamming in R
+
+We are going to analyze the performance of soccer teams throughout the World Cups.
+
+The data mining process begins by obtaining data. In the following code we load a csv file found on the dataminingsoccer.com
+
+```{r worlds}
+soccer = "http://dataminingsoccer.com/de/wp-content/downloads/SoccerDataAllWorldCups.csv"
+Worlds = read.table(soccer, sep=";",header=T)
+
+head(Worlds)
+```
+
+
+## Generating Variables
+
+let's say that we want to analyze the number of goals per game throughout the history of Soccer. For this, we must add the goals of both teams in each match.
+
+```{r variables}
+Worlds$Goals = Worlds$score.A + Worlds$score.B
+
+hist(Worlds$Goals)
+```
+
+Our experience tells us that the number of goals should vary depending on the stage of the tournament. Before analyzing this, let's see if the tournament stages are comparable throughout the tournaments.
+
+```{r stage}
+table(Worlds$which.stage.of.the.turnament)
+```
+
+They are not all consistent, so we will create another variable that will represent a simplification of the phase. We will define 2 simplified phases, advance phases and final phases. Those phases that contain the word "final" belong to the second group, and the rest to the first
+
+```{r stage_group}
+# We create the variable "phase" with value "groups" for all games.
+Worlds$phase = "groups"
+
+# We change values if contains special words (final) in the stage of the tournament.
+Worlds$phase  [
+                grep("^final|^semi final|^final round",
+                Worlds$which.stage.of.the.turnament)
+              ] = "finals"
+
+# We change values if contains special words (third) in the stage of the tournament.
+Worlds$phase  [
+                grep("third",
+                Worlds$which.stage.of.the.turnament)
+              ] = "3-4 place"
+
+table(Worlds$phase)
+```
+
+Since we want to analyze the evolution of goals per phase throughout history, we must average the goals for each phase / world cup.
+
+```{r goals_per_phase}
+data_phase = aggregate(Goals ~ year + phase, Worlds, mean)
+
+head(data_phase)
+```
+
+We create a graph of the evolution of goals per game over time, differentiated by simplified phase
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+ggplot(data_phase, aes(x=year, y =Goals, col=phase)) + 
+  geom_point() +
+  geom_smooth(method = 'loess' , formula = 'y ~ x') + 
+  theme_minimal() + 
+  xlab("World cup Year") +
+  ylab("# Goals") + 
+  ggtitle("Average goals per game according to year and phase of the World Cup")
+```
