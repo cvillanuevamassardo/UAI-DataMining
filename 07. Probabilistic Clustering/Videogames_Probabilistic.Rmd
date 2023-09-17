@@ -1,0 +1,109 @@
+---
+title: "Videogames_Probabilistic"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For this exercise we will continue using the video game data that we have used in previous sessions, but we will only use the User Score and Critic Score variables to better visualize the results in a 2D graph.
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+
+data_escalada  <- read.csv("video_games_sales.csv") %>% 
+  mutate(User_Score = as.numeric(User_Score)) %>% 
+  filter(!(is.na(Critic_Score) | is.na(User_Score))) %>% 
+  select(-Global_Sales) %>% 
+  select(Critic_Score, User_Score) %>% 
+  scale() %>% 
+  as_tibble()
+
+data_escalada %>% summary()
+```
+
+## Density-based Clustering
+
+The first method that we will implement is density-based clustering, which is implemented in the DBSCAN library.
+
+```{r, warning = FALSE, message = FALSE}
+library(dbscan)
+
+model = dbscan(data_escalada, eps = 0.1, minPts = 15)
+
+model
+```
+
+It can be seen that the model generated 16 clusters based on the minPts and eps parameters that we gave to the dbscan function.
+
+In the figure below we can see that the clusters are distributed throughout space
+
+```{r}
+ggplot(data_escalada, aes(Critic_Score, User_Score, color = factor(model$cluster))) + 
+  geom_point(alpha = 0.3) 
+```
+
+It can be seen that there are several points that are not assigned to any cluster given the values chosen for the minimum distance.
+
+## C-means Algorithm
+
+Other algorithms such as c-means allow you to assign a cluster to all points.
+
+To apply cmeans we will use a library called e1071, although there are other implementations
+
+```{r, warning=FALSE}
+library(e1071)
+
+modelo_c_means <- cmeans(data_escalada, 16, m=3) 
+
+modelo_c_means$membership %>% head()
+```
+
+The c means algorithm assigns as a cluster the one with the highest probability
+
+```{r}
+ggplot(data_escalada, aes(Critic_Score, User_Score, color = factor(modelo_c_means$cluster))) + 
+  geom_point(alpha = 0.3) 
+```
+
+## Fuzzy Partition Coefficient (FPC)
+
+For fuzzy clustering models we can calculate the Fuzzy Partition Coefficient (FPC)
+
+```{r}
+matriz <- modelo_c_means$membership%*%t(modelo_c_means$membership) # producto matricial
+
+(FPC <- sum(matriz*diag(nrow(matriz)))/nrow(matriz))
+```
+
+The FPC value is low, which means that the groups have high variability, and it can be confirmed in the figure since no defined groups are seen.
+
+As in cmeans, GMM methods allow obtaining fuzzy clusters but using probabilistic models.
+
+To apply GMM, we use the mclust library
+
+```{r, message = FALSE, warning = FALSE}
+library(mclust)
+
+model_gmm = Mclust(data_escalada)
+
+model_gmm 
+summary(model_gmm, parameters = TRUE)
+```
+
+The model generated 5 clusters which can be viewed the same as the previous examples.
+
+```{r}
+ggplot(data_escalada) + 
+  aes(x=Critic_Score, y=User_Score, color=factor(model_gmm$classification)) + 
+  geom_point(alpha=0.5) 
+```
+
+The model applied all possible forms of the covariance matrix, and allows us to visualize how the BIC evolves as we increase the number of clusters. 
+
+This visualization allows us to see that most of the models stop improving after 5 clusters.
+
+```{r}
+plot(model_gmm, what = "BIC")
+```
