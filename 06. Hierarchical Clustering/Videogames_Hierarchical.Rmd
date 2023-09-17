@@ -1,0 +1,98 @@
+---
+title: "Videogames_Hierarchical"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this example we will use the same data as for k means
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+data_escalada  <- read.csv("video_games_sales.csv") %>% 
+  mutate(User_Score = as.numeric(User_Score)) %>% 
+  filter(!(is.na(Critic_Score) | is.na(User_Score))) %>% 
+  select(-Global_Sales) %>% 
+  select(c(6:9, 10, 12)) %>% 
+  scale() %>% 
+  as_tibble()
+
+data_escalada %>% head()
+```
+
+Now we calculate the distance matrix between the entities, using the 'dist' function that calculates the Euclidean distances
+
+```{r }
+# Euclidean distance
+d = dist(data_escalada)
+
+hist(d)
+```
+
+Using the R base hclust function, we apply hierarchical clustering, based on the distance matrix d, and use the complete linkage criterion.
+
+```{r}
+model_complete = hclust(d, method="complete") 
+
+summary(model_complete)
+```
+
+
+We generate a dendrogram to visualize the hierarchy. The 'ggdendro' library allows you to make these diagrams in a syntax equivalent to ggplot.
+
+```{r, warning=FALSE}
+library("ggdendro")
+
+ggdendrogram(model_complete, rotate = TRUE, theme_dendro = TRUE) 
+```
+
+
+The 'hclust' function has the 'method' parameter, which can be set with different joining criteria, such as 'average linkage' or others.
+
+```{r}
+model_ward = hclust(d, method="ward.D") 
+model_ward2 = hclust(d, method="ward.D2") 
+model_single = hclust(d, method="single")
+model_average = hclust(d, method="average") 
+model_mcquitty = hclust(d, method="mcquitty") 
+model_median = hclust(d, method="median") 
+model_centroid = hclust(d, method="centroid") 
+
+summary(model_ward)
+summary(model_ward2)
+summary(model_single)
+summary(model_average)
+summary(model_mcquitty)
+summary(model_median)
+summary(model_centroid)
+```
+
+Trees can be cut at some point according to the height parameter 'h'. We are going to make a cut with 'h = 5' and we will see how many clusters we get, and their silhouettes.
+
+```{r}
+library(cluster)
+
+groups <- cutree(model_complete, h = 5)  
+coefsil <- silhouette(groups, d)
+groups %>% unique() %>% length()
+summary(coefsil)
+```
+
+We will use the number of clusters to compare different cut-off points of the hierarchy.
+
+```{r}
+res <- tibble("h" = quantile(d, probs  = (1:100)/100), n = 0)
+
+for (i in 1:100){
+  groups <- cutree(model_average, h = res$h[i])  
+  res$n[i] <- groups %>% unique() %>% length()
+}  
+
+ggplot(res, aes(h, n)) + 
+  geom_point() + 
+  scale_x_log10() + 
+  scale_y_log10()
+```
