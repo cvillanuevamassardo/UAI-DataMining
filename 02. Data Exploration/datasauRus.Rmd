@@ -1,0 +1,134 @@
+---
+title: "datasauRus"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Analysis of the data set to summarize its main characteristics, using statistical and visual methods.
+
+Goals:
+
+- Discover the underlying structure of the data.
+
+- Identify relevant variables.
+
+- Detect outliers and anomalies.
+
+- Validate assumptions.
+
+- Generate hypotheses from the data.
+
+## Exploratory Data Analysis (EDA)
+
+We are going to explore a data set called datasauRus, which consists of the combination of 13 data sets with x and y coordinates.
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(datasauRus)
+library(proxy)
+```
+
+```{r}
+summary(datasaurus_dozen)
+```
+
+### Data statistics
+
+We compute a variety of statistics and similarity metrics for each unique category in the "datasaurus_dozen" dataset and present a summary of these results using the glimpse() and summary() functions. Analysis is performed to explore and understand the characteristics of the data based on the "dataset" variable.
+
+```{r}
+stats <- datasaurus_dozen %>% 
+            group_by(dataset) %>% 
+            summarize(
+              mean_x    = mean(x),
+              mean_y    = mean(y),
+              std_dev_x = sd(x),
+              std_dev_y = sd(y),
+              corr_pears  = cor(x, y, method = "pearson"),
+              corr_spear  = cor(x, y, method = "spearman"),
+              corr_kendall  = cor(x, y, method = "kendall"),
+              simil_cos = simil(list(x,y), method = "cosine") %>% as.numeric(),
+              simil_jac = simil(list(x,y), method = "Jaccard") %>% as.numeric(),
+              simil_sm = simil(list(x,y), method = "simple matching") %>% as.numeric(),
+              simil_kul = simil(list(x,y), method = "Kulczynski1") %>% as.numeric(),
+              dist_euc = dist(list(x,y), method = "Euclidean") %>% as.numeric(),   
+              dist_manh = dist(list(x,y), method = "Manhattan") %>% as.numeric(),  
+              dist_sup = dist(list(x,y), method = "supremum") %>% as.numeric(),   
+              median_x    = median(x),
+              median_y    = median(y),
+              CV_x = sd(x) / mean(x),
+              CV_y = sd(y) / mean(y),
+              max_x = max(x),
+              max_y = max(y)
+            )
+
+stats %>% glimpse()
+
+summary(pr_DB)
+```
+
+### Data Visualization
+
+#### Dot plot
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x, y=y, colour=dataset)) +
+    geom_point() +
+    theme_void() +
+    theme(legend.position = "none") +
+    facet_wrap(~dataset, ncol=3)
+```
+
+#### Histogram
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x,colour=dataset)) +
+    geom_histogram(binwidth = 2) +
+    theme_void() +
+    theme(legend.position = "none") +
+    facet_wrap(~dataset, ncol=3)
+```
+
+#### Density
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x,colour=dataset))+
+    geom_density()+
+    theme_void()+
+    theme(legend.position = "none")+
+    facet_wrap(~dataset, ncol=3)
+```
+
+#### Boxplot
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x, colour=dataset))+
+    geom_boxplot()+
+    theme_void()+
+    theme(legend.position = "none")+
+    facet_wrap(~dataset, ncol=3)
+```
+
+#### Violin
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x, y=y, colour=dataset))+
+    geom_violin()+
+    theme_void()+
+    theme(legend.position = "none")+
+    facet_wrap(~dataset, ncol=3)
+```
+
+#### Boxplot_2
+
+```{r}
+ggplot(datasaurus_dozen, aes(x=x, y=dataset, colour=dataset)) +
+    geom_point() +
+    geom_boxplot() +
+    theme_void() +
+    theme(legend.position = "none")
+```
