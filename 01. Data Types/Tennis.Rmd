@@ -1,0 +1,138 @@
+---
+title: "Tennis"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Types
+
+There are various types of variables, such as numerical, text, date or ordinals.
+To analyze them, the first thing we must do is load the tabulate data, using the read.csv() function.
+
+```{r Tennis}
+Tennis = read.csv("rankingsATP.csv")
+  
+str(Tennis)
+```
+
+
+In the table there are records with missing data (NULL) and invalid data (NA). To validate the information, we use the summary() function.
+
+```{r Summary}
+summary(Tennis)
+```
+
+We are also interested in exploring the number of rows and columns of the
+board
+
+```{r Dimension}
+dim(Tennis)
+```
+
+## Data pre-processing
+
+Data pre-processing is a set of steps that must be run with a specific use, it is not a general process for data.
+
+In this case we will define the specific use as: Studying the annual evolution of the top 10 ATP tennis players since the year 2012.
+
+### Dimensionality reduction and variable selection
+
+To simplify the analysis we will consider:
+
+  - Data from 2012.
+  - Variables week_year, rank_number, player_slug
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+```{r Dimensionality reduction}
+data2 <- Tennis %>% 
+            filter(week_year >= 2012) %>% 
+            select(week_year, rank_number, player_slug)
+
+dim(data2)
+```
+
+### Duplicated Data
+
+If we want to preserve only the unique entities we can use the unique() function.
+
+```{r Unique}
+unique_data <- unique(data2)
+
+dim(unique_data)
+```
+
+### Sampling
+
+To do simple sampling without replacement we can use the sample() function.
+
+```{r Sample}
+# Generate a list of 1000 random numbers from the values between 1 and the number of unique records.
+sampleIndex <- sample(1:nrow(unique_data),1000, replace = F)
+sampleData <- unique_data[sampleIndex,]
+
+dim(sampleData)
+```
+
+### Aggregation
+
+If you would like to add the ranking for each player-year, we better use directly the aggregate() function.
+
+```{r Aggregate}
+# Add the ranking_number variable calculating the median, for each week and player.
+agg_df <- aggregate(rank_number ~ week_year + player_slug, data2, mean)
+
+dim(agg_df)
+```
+
+### Normalization / Standardization
+
+We already have the average ranking of the year, but we also want to know the relative position of that ranking in each year. For this we must divide the ranking of each year by the maximum value of that year.
+
+With this the resulting variable will fluctuate between 0 and 1.
+
+```{r Normalization}
+# calculate the maximum annual value with aggregate
+max_rank <- aggregate(rank_number ~ week_year, agg_df, max)
+
+# rename rank_number so it doesn't repeat when I merge
+colnames(max_rank)[2] <- "max"
+
+# merge aggregate data with the maximums, using the week as the id of the crossing
+agg_df <- merge(agg_df, max_rank, by="week_year")
+
+# generate relative ranking by dividing ranking by the maximum of that week
+agg_df$rank_relative <- agg_df$rank_number / agg_df$max
+
+summary(agg_df)
+```
+
+### Discretization
+
+create a discrete variable that will have a value of 1 in case the ranking relative is in the top 10, 0 otherwise.
+
+```{r}
+agg_df$top10 <- as.numeric(agg_df$rank_number <= 10)
+
+table(agg_df$top10)
+```
+
+## Evolution of the top 10 ATP Tennis Players since the year 2012.
+
+```{r graph, echo=FALSE}
+#data filter for the graph
+data_plot <- agg_df %>% filter(top10 == 1) 
+
+ggplot(data_plot, aes(week_year, rank_number, col = player_slug)) + 
+  geom_line() + 
+  geom_point() + 
+  theme(legend.position = "bottom") +
+  scale_y_reverse() + 
+  ggtitle("Evolution of the top 10 ATP Tennis Players from 2012 to 2017.") +
+  scale_color_viridis_d()
+```
