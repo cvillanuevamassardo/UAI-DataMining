@@ -1,0 +1,136 @@
+---
+title: "Properties"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For the regression analysis we are going to use data on housing prices in Santiago, Chile. 
+
+The first thing we will do is load the data and review it with the summary function
+
+```{r, message=  FALSE, warning= FALSE}
+library(tidyverse)
+
+propiedades <- read_csv("propiedades.csv")
+
+summary(propiedades)
+```
+
+We see that in the database there are columns for the Price of the homes, as well as the surface area of the land, constructed area, year of construction, and some variables related to the neighborhood, such as housing density of the neighborhood, and the presence of schools, gardens or workplaces within a 15-minute walk from the location of the house.
+
+To begin, we will look for a linear relationship between the price of the house and the meters built. Before running the regression we will inspect the data.
+
+## Linear Relationship
+
+```{r}
+ggplot(propiedades, aes(Precio, Terreno)) + 
+  geom_point()
+```
+
+We can see that there are some atypical data that do not reflect the expected behavior of the market. Given this, we are going to exclude them from the analysis.
+
+```{r}
+propiedades <- propiedades %>% filter(Terreno < 3000)
+
+ggplot(propiedades, aes(Precio, Terreno)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+## Regression model
+
+### Regression linear model 
+
+Now we will execute the regression with the indicated variables using the lm (linear model) function, which comes in R base.
+
+```{r}
+regresion_lineal <- lm(Precio~Terreno, propiedades)
+
+summary(regresion_lineal)
+```
+
+The results of the regression indicate that the parameter values are 770 for the intercept and 10 for the coefficient associated with the land surface variable.
+
+It can also be seen that the determination coefficient R2 is .41, which means that 41% of the price variance is explained by the linear model.
+
+The linear regression method also allows us to obtain the standard deviations of the parameters, and therefore the t-student statistic and the p value can be calculated. In the summary table you can see that both parameters have a statistical significance of 100%, which means that they really contribute to the explanation of the price.
+
+### Regression logarithmic model 
+
+It may happen that the relationship between both variables has a logarithmic behavior instead of linear, so we are going to test this hypothesis by applying natural logarithm in both variables.
+
+```{r}
+regresion_log <- lm(log(Precio)~log(Terreno), propiedades)
+
+summary(regresion_log)
+```
+
+We can see that the coefficient of determination improved to 47% and that both coefficients are still statistically significant, which means that this is a better model than the previous one.
+
+### Regression Polynomial model
+
+It is also possible that the relationship between both variables has a polynomial form. Let's try a polynomial of order 3.
+
+```{r}
+propiedades$Terreno2 <- propiedades$Terreno^2
+propiedades$Terreno3 <- propiedades$Terreno^3
+
+regresion_poli <- lm(log(Precio) ~ Terreno + Terreno2 + Terreno3, propiedades)
+
+summary(regresion_poli)
+```
+
+It can be seen that the polynomial regression has a better R2 coefficient than the original model, and that all the coefficients are still statistically significant.
+
+### Regression multiple linear model
+
+So far we have only tested with one variable, let's see if we include the rest of the variables present in the database.
+
+```{r}
+regresion_multi <- lm(Precio ~ Terreno+Construido+Año_Construccion+densidad_barrio+colegio_15m + jardin_15m + trabajo_15m , propiedades)
+
+summary(regresion_multi)
+```
+
+It can be seen that the multiple linear model has a determination coefficient of 57%, and that there are some variables that have statistical significance of less than 99%, and there are even variables that are not relevant in this model, such as the year of construction.
+
+This does not mean that the year is not relevant, but that it is not relevant in THIS MODEL.
+
+## Other Methods
+
+Now we are going to try different methods to determine which is the best combination of variables for the linear model.
+
+The model determination methods are implemented in the olsrr library, and the first method we will try is brute force.
+
+### Brute Force Method
+
+```{r, message=FALSE, warning=FALSE}
+library(olsrr)
+
+fuerza_bruta <- ols_step_all_possible(regresion_multi)
+
+plot(fuerza_bruta)
+```
+
+### Forward Selection Method
+
+Then the forward selection method
+
+```{r}
+sel_adelante <- ols_step_forward_p(regresion_multi)
+
+sel_adelante
+```
+
+### Backward Selection Method
+
+And finally the backward selection method
+
+```{r}
+sel_atras <- ols_step_backward_p(regresion_multi)
+
+sel_atras
+```
