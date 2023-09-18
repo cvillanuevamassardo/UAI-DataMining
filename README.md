@@ -7,7 +7,7 @@ Profesor: Raimundo Sanchez. Doctor en Ingeniería de Sistemas Complejos.
 Github: Raimun2
 
 Los videos de las clases los pueden encontrar en [YouTube](https://www.youtube.com/playlist?list=PL9Yll0eEZuHBCdhixhG5q2bfhsJ-WxbFo)
-  - [1: Introduccion](../master/01.Introduccion)
+  - [1: Introduccion](../master/00. Introduction to Data Mining)
 
   - [2: Tipos de datos](../master/02.Tipos_de_datos)
 
