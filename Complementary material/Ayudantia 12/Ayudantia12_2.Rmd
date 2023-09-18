@@ -1,0 +1,233 @@
+---
+title: "Ayudantia 12 SVM"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cargamos las librerias
+
+```{r cargando librerias, message=FALSE}
+library(plyr)
+library(ggplot2)
+library(tidyverse)
+library(tidymodels)
+library(discrim)
+library(caret)
+```
+
+## Cargamos los datos
+
+```{r cargando datos}
+setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets")
+
+# adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv")
+
+adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv", na.strings = c("","NA"," ","?"))
+```
+
+```{r exploracion1}
+head(adult)
+
+summary(adult)
+```
+
+```{r exploracion2}
+glimpse(adult)
+```
+
+## Transformamos la variable income y Eliminamos variables no relevantes
+
+```{r transformacion variables}
+#Map 0 to 1 the adult feature
+adult <- adult %>% mutate(income50k = ifelse(income == ">50K", 1,0)) %>% 
+  select(-c(relationship, education.num, race, native.country, capital.loss, fnlwgt, workclass,income))
+
+adult$income50k <- adult$income50k %>% as.factor()
+```
+
+## Separar data en Test y Train
+
+```{r separar data}
+library(tidymodels)
+
+data_split <- initial_split(adult, prop = 0.7)
+
+# Create data frames for the two sets:
+train_data <- training(data_split) 
+test_data <- testing(data_split)
+
+glimpse(train_data)
+glimpse(test_data)
+```
+
+```{r nas presentes en train-test}
+train_data %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+test_data %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+test_data <- test_data %>% filter(!(is.na(occupation)))
+
+test_data %>% 
+  summarise_all(funs(sum(is.na(.))))
+```
+
+
+## Implementacion SVM, Creamos Receta de nuestro modelo
+
+```{r receta modelo}
+receta <- 
+  recipe(income50k ~ ., data = train_data) %>% 
+  step_naomit(occupation, skip = TRUE) %>% 
+  step_dummy(c(sex, marital.status), one_hot = TRUE) %>% 
+  step_normalize(all_numeric(), -all_outcomes()) %>% 
+  step_zv(all_numeric(), -all_outcomes())
+  
+receta
+summary(receta)
+
+prep_data <-
+  receta %>% 
+  prep() %>% 
+  juice()
+
+glimpse(prep_data)
+
+prep_data %>%
+  summarise_all(funs(sum(is.na(.))))
+```
+
+## Creamos nuestro modelo SVM (polinomio grado 1)
+
+```{r modelo svm}
+modelo_svm <- svm_poly(degree = 1) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+
+modelo_svm
+```
+
+## Fiteamos nuestor modelo SVM
+
+```{r fit modelo}
+fit_mod <- function(mod){
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train_data)
+
+model_pred <- 
+  predict(modelo_fit, test_data, type = "prob") %>% 
+  bind_cols(test_data) 
+
+return(model_pred %>% 
+  roc_auc(truth = income50k, .pred_0))
+}
+
+fit_mod(modelo_svm)
+```
+
+## Tuneo Modelo SVM
+
+```{r tune svm}
+modelo_svmtune <- 
+  svm_rbf(cost = tune(), rbf_sigma = tune()) %>% 
+  set_mode("classification") %>% 
+  set_engine("kernlab") %>% 
+  translate()
+```
+
+```{r prep data tune}
+adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv", na.strings = c("","NA"," ","?"))
+
+adult <- adult %>% filter(!(is.na(workclass))) %>% filter(!(is.na(occupation))) %>% filter(!(is.na(native.country)))
+
+adult <- adult %>% mutate(income50k = ifelse(income == ">50K", 1,0)) %>% 
+  select(-c(relationship, education.num, race, native.country, capital.loss, fnlwgt, workclass,income))
+
+adult$income50k <- adult$income50k %>% as.factor()
+
+set.seed(36)
+
+adult_rs <- bootstraps(adult, times = 20)
+
+roc_vals <- metric_set(roc_auc)
+
+ctrl <- control_grid(verbose = FALSE, save_pred = TRUE)
+```
+
+```{r formula tune}
+set.seed(36)
+
+formula_res <-
+  modelo_svmtune %>% 
+  tune_grid(income50k ~ .,
+            resamples = adult_rs,
+            metrics = roc_vals,
+            control = ctrl
+  )
+
+formula_res
+```
+
+```{r receta tune}
+recipe_res <-
+  modelo_svmtune %>% 
+  tune_grid(
+    receta,
+    resamples = adult_rs,
+    metrics = roc_vals,
+    control = ctrl
+  )
+
+recipe_res
+```
+
+```{r best metrics}
+show_best(recipe_res, metric = "roc_auc")
+```
+
+## Probemos distintos grados para el polinomio
+    Usaremos la funcion utilizada por el profe en la clase
+
+```{r fit grado}
+fit_polySVM <- function(grado){
+  
+  mod <- svm_poly(degree = grado) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train)
+
+model_pred <- 
+  predict(modelo_fit, test, type = "prob") %>% 
+  bind_cols(test) 
+
+return(model_pred %>% 
+  roc_auc(truth = income, .pred_0))
+}
+```
+
+## Grado 1
+
+```{r grado 1}
+fit_polySVM(1)
+```
+
+## Grado 2
+
+```{r grado 2}
+fit_polySVM(2)
+```

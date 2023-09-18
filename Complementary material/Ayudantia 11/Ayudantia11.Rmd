@@ -1,0 +1,433 @@
+---
+title: "Ayudantia 11 Arboles de Decision"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Actividad Ayudantia 11
+
+- Para la actividad de esta ayudantia realizaran el analisis de arbol de decision a partir de alguno de los dos data sets que quedaron subidos. Para el caso de Credit Card el objetivo sera clasificar si el cliente va a pagar o no el credito que adeuda. Mientras para el caso de Hotel Bookings el objetivo sera determinar si la reserva del hotel sera o no cancelada. (Comparen los resultados obtenidos mediante arboles de decision con los modelos de regresion logistica, naive bayes y KNN)
+
+## Ayudantia 11
+
+- Para esta ayudantia utilizaremos el dataset Adult Census (https://www.kaggle.com/uciml/adult-census-income) en el link podran en contrar mas detalles del dataset.
+- El objetivo es utilizar el modelo de arboles de decision que nos permita clasificar si ingreso es <=50K o >50K, para luego generar una prediccion a partir de nuestro modelo. Evaluaremos los resultados del modelo y realizaremos un acercamiento a lo que es el tuneo de modelos.
+
+## Arboles de Decision (modelo CART)
+
+- Algoritmo de aprendizaje automatico supervisado que se puede utilizar tanto para problemas de clasificacion como para problemas de regresion, por lo que tambien se lo conoce como modelo CART (arboles de clasificacion y regresion)
+
+- ¿Como funciona? La idea detras de los arboles de decision es realizar multiples divisiones en el conjunto de datos para tomar una decision
+
+## Cargamos las librerias
+
+```{r cargando librerias, message=FALSE}
+library(plyr)
+library(ggplot2)
+library(tidyverse)
+library(tidymodels)
+library(discrim)
+library(caret)
+library(pROC)
+```
+
+## Cargamos los datos
+
+```{r cargando datos}
+setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets")
+
+# adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv")
+
+adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv", na.strings = c("","NA"," ","?"))
+```
+
+```{r exploracion1}
+head(adult)
+
+summary(adult)
+```
+
+```{r exploracion2}
+str(adult)
+```
+
+## Transformamos la variable income
+
+```{r transformacion variables}
+#Map 0 to 1 the adult feature
+adult$income <- mapvalues(adult$income, from=c('>50K', '<=50K'), to=c(1,0))
+```
+
+```{r eliminar na}
+adult %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+adult <- adult %>% filter(!(is.na(workclass))) %>% filter(!(is.na(occupation))) %>% filter(!(is.na(native.country)))
+
+adult %>% 
+  summarise_all(funs(sum(is.na(.))))
+```
+
+## Exploracion de los datos
+
+```{r  plot count, fig.width=7, fig.height=4}
+table(adult$income)
+
+target_count <- ggplot(adult, aes(x = income)) + 
+geom_bar(color="black",width = 0.9) +
+coord_flip() + 
+theme_classic() +
+theme(text=element_text(size = 15,  family="sans")) + 
+theme(legend.position = "none") + 
+scale_y_continuous(name = " ", limits = c(0,24000)) + 
+ggtitle("Count Plot") + 
+theme(plot.title = element_text(size = 20, face = "bold"))
+
+target_count
+```
+```{r plot1, fig.width=15, fig.height=6}
+table(adult$workclass)
+
+plot1 <- ggplot(adult, aes(x = sex, fill = income)) + 
+scale_fill_manual(name = " ", labels = c("<=50K", ">50K"), values = c("1" = "#F0FF00","0"="#34495E")) +
+geom_bar(color="black",position="fill") + #black outline of the bars
+facet_wrap(factor(workclass) ~ .) +
+#coord_flip() + #flip the axes
+theme_classic() + #classic theme for cleaner look
+theme(text=element_text(size=13,  family="sans")) + #Font change to sans
+theme(legend.position = "right") + 
+#scale_y_discrete(name = " ", limits = c("Federal-gov","Female")) +
+#scale_x_discrete(name = " ", limits = c("F", "M")) +
+ggtitle("Ingreso por workclass por genero") + #axis name and order of labels
+theme(plot.title = element_text(size = 18, family="sans", face = "bold"))
+
+plot1
+```
+```{r plot2, fig.width=40, fig.height=10}
+
+plot2 <- ggplot(adult, aes(x = relationship, fill = income)) + 
+scale_fill_manual(name = " ", labels = c("<=50K", ">50K"), values = c("1" = "#F0FF00","0"="#34495E")) +
+geom_bar(color="black",position="fill") + #black outline of the bars
+facet_wrap(factor(race) ~ .) +
+#coord_flip() + #flip the axes
+theme_classic() + #classic theme for cleaner look
+theme(text=element_text(size=25,  family="sans")) + #Font change to sans
+theme(legend.position = "right") + 
+#scale_y_discrete(name = " ", limits = c("Federal-gov","Female")) +
+#scale_x_discrete(name = " ", limits = c("F", "M")) +
+ggtitle("Ingreso por raza por relacion") + #axis name and order of labels
+theme(plot.title = element_text(size = 18, family="sans", face = "bold"))
+
+plot2
+```
+
+```{r plot3, fig.width=12, fig.height=12}
+library(patchwork)
+
+plot3 <- ggplot(adult,aes(fnlwgt, hours.per.week, color=income)) + 
+  geom_point(size = 8) + 
+  scale_color_manual(values = c('#34495E','#F0FF00')) + 
+  theme(legend.position = "bottom") +
+  theme_classic() +
+  theme(text=element_text(size=15,  family="sans"))
+
+plot4 <- ggplot(adult,aes(fnlwgt, education.num, color=income)) + 
+  geom_point(size = 8) + 
+  scale_color_manual(values = c('#34495E','#F0FF00')) + 
+  theme(legend.position = "bottom") +
+  theme_classic() +
+  theme(text=element_text(size=15,  family="sans"))
+
+plot5 <- ggplot(adult,aes(fnlwgt, capital.gain, color=income)) + 
+  geom_point(size = 8) + 
+  scale_color_manual(values = c('#34495E','#F0FF00')) + 
+  theme(legend.position = "bottom") +
+  theme_classic() +
+  theme(text=element_text(size=15,  family="sans"))
+
+plot6 <- ggplot(adult,aes(fnlwgt, capital.loss, color=income)) + 
+  geom_point(size = 8) + 
+  scale_color_manual(values = c('#34495E','#F0FF00')) + 
+  theme(legend.position = "bottom") +
+  theme_classic() +
+  theme(text=element_text(size=15,  family="sans"))
+
+
+combined <- plot3 + plot4 + plot5 + plot6 & theme(legend.position = "bottom") + theme(legend.text=element_text(size=20))
+combined + plot_layout(guides = "collect")
+```
+
+## Implementacion Decision Trees, separar data en Test y Train
+
+```{r separar data}
+library(tidymodels)
+
+data_split <- initial_split(adult, prop = 0.8)
+
+# Create data frames for the two sets:
+train_data <- training(data_split) 
+test_data <- testing(data_split)
+
+str(train_data)
+str(test_data)
+```
+
+## Seleccion de Atributos
+
+- Si lo pensamos bien, marital.status y relationship son atributos que estan algo relacionadas. Lo mismo ocurre con education.num y education. Ademas hay atributos que no tienen mucha importancia para el analisis que tambien eliminaremos.
+
+```{r seleccion atributos}
+train <- subset(train_data, select = - c(relationship, education.num, race, native.country, capital.loss, fnlwgt, hours.per.week, workclass))
+test <- subset(test_data, select = - c(relationship, education.num, race, native.country, capital.loss, fnlwgt, hours.per.week, workclass))
+```
+
+## Crear Modelo
+
+- Primero creamos la receta de nuestro modelo
+
+```{r receta}
+receta <- 
+  recipe(income ~ ., data = train)
+
+receta
+```
+
+- Luego procedemos a crear nuestro modelo de arbol de decision con 5 capas de decision, y un minimo numero de entidades por hoja (poda) de 10. La libreria que se utiliza para calcular este modelo sera la de rpart, que viene precargada en los paquetes que estamos utilizando. Con este paso solo definimos el modelo, aun no lo calculamos.
+
+```{r modelo arbol}
+modelo_trees <-
+  decision_tree(tree_depth = 5, min_n = 10) %>% 
+  set_engine("rpart") %>% 
+  set_mode("classification")
+
+modelo_trees
+```
+
+- Ahora hacemos el fit del modelo, calculamos sus predicciones y calculamos el valor de AUC
+
+```{r fit modelo}
+fit_mod <- function(mod){
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train)
+
+model_pred <- 
+  predict(modelo_fit, test, type = "prob") %>% 
+  bind_cols(test) 
+
+return(model_pred %>% 
+  roc_auc(truth = income, .pred_0))
+}
+
+fit_mod(modelo_trees)
+```
+- Ahora compararemos con otros modelos (regresion logistica, naive bayes o KNN), aprovechando que la libreria tidymodels nos facilita realizar esta comparacion. Lo unico que debemos cambiar es el modelo, ya que utilizamos la misma receta y el mismo flujo de validacion para el modelo. Por lo que podemos reutilizar lo que hicimos arriba
+
+## Regresion Logistica
+
+```{r modelo regresion logistica}
+modelo_rl <- 
+  logistic_reg() %>% 
+  set_engine("glm")
+
+fit_mod(modelo_rl)
+```
+
+## Naive Bayes
+
+```{r modelo naive bayes}
+library(naivebayes)
+
+modelo_nb <-
+  naive_Bayes(smoothness = .8) %>%
+  set_engine("naivebayes")
+
+fit_mod(modelo_nb)
+```
+
+## KNN
+
+```{r modelo KNN}
+library(kknn)
+
+modelo_knn <-
+  nearest_neighbor(neighbors = 5) %>% 
+  set_engine("kknn") %>% 
+  set_mode("classification")
+
+fit_mod(modelo_knn)
+```
+
+- Podemos ver que en este caso el modelo de Naive Bayes y el modelo de Regresion Logistica son los que obtienen los mejores resultados al clasificar con un AUC de .89-.088.
+
+```{r plot tree ,fig.width=15, fig.height=8}
+library(rpart)
+library(rpart.plot)
+
+censo <- rpart(income~., data = train, method = "class")
+
+rpart.plot(censo)
+
+```
+
+## Predict
+
+```{r predict modelo}
+pred_income <- predict(censo, newdata = test, type = "class")
+pred_income %>% as.data.frame() %>% head()
+pred_income %>% as.data.frame() %>% tail()
+
+test_data$predictedincome <- pred_income
+```
+
+```{r predict ROC}
+## Prob para curva ROC
+
+pred_incom_roc <- predict(censo, newdata = test, type = "prob")
+pred_incom_roc %>% as.data.frame() %>% head()
+pred_incom_roc %>% as.data.frame() %>% tail()
+pred_incom_roc <- pred_incom_roc %>% as.data.frame()
+prob <- pred_incom_roc$"1"
+```
+## Evaluar Modelo
+
+```{r evaluacion modelo ,fig.width=10, fig.height=10}
+
+cm <- confusionMatrix(table(test_data$income, test_data$predictedincome))
+test_data$predictedincome <- as.factor(test_data$predictedincome)
+
+table <- data.frame(confusionMatrix(test_data$income, test_data$predictedincome)$table)
+
+print(cm)
+print(cm$byClass)
+
+plotTable <- table %>%
+  mutate(goodbad = ifelse(table$Prediction == table$Reference, "Good", "Bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+confusionMatrix <- ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = goodbad, alpha = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 25, size = 8) +
+  scale_fill_manual(name = " ", values = c(Good = "#F0FF00", Bad = "#34495E")) +
+  scale_alpha(name = " ") +
+  theme_classic() +
+  xlim(rev(levels(table$Reference))) +
+  scale_y_discrete(name = "Predicted", limits = c("1","0")) + 
+  scale_x_discrete(name = "Actual", position = "top") +
+  #theme(legend.position = " ") +
+  theme(text=element_text(size=25,  family="sans")) + 
+  ggtitle("Confusion Matrix") +
+  theme(plot.title = element_text(size = 25, family="sans", face = "bold"))
+  
+confusionMatrix
+```
+
+## Curva ROC
+
+```{r curva ROC ,fig.width=7, fig.height=8}
+ROC <- roc(test_data$income,prob)
+plot(ROC, col = "#fd634b", family = "sans", cex = 2, main = "CART Model ROC Curve 
+AUC = 0.8474")
+auc(ROC)
+```
+
+## Chequeo de Overfitting - Train vs Test Accuracy
+
+```{r overfitting}
+is_predictedincome <- predict(censo,newdata=train_data,type='class')
+misClassError <- mean(is_predictedincome != train_data$income)
+print(paste('Train-set Accuracy =',1-misClassError))
+misClassError <- mean(test_data$predictedincome != test_data$income)
+print(paste('Test-set Accuracy =',1-misClassError))
+```
+
+- Al observar los resultados del AUC y el accuracy del modelo, podemos concluir que el modelo CART hizo un buen trabajo de clasificacion. El accuracy del test y del train no estan my lejos una de la otra, lo que nos indica que el modelo no se supero. 
+
+- Lo ultimo que veremos sera la optimizacion de hiperparametros para ver si podemos mejorar el resultado obtenido.
+
+## Creando un modelo CART optimo: Tuneo Automatico
+
+```{r tuneo modelo}
+set.seed(823)
+fitControl <- trainControl(method = "cv", number = 10,         
+                      verboseIter = FALSE)
+
+
+best_model <- train(income ~ ., data = train,            
+                    method = "rpart",                     
+                    trControl = fitControl,
+                    tuneLength = 10)
+best_model
+best_model$bestTune
+```
+
+## Predict
+
+```{r predict modelo tuneado}
+pred_income <- predict(best_model, newdata = test, type = "raw")
+pred_income %>% as.data.frame() %>% head()
+pred_income %>% as.data.frame() %>% tail()
+
+test_data$predictedincome <- pred_income
+```
+
+```{r predict ROC modelo tuneado}
+## Prob para curva ROC
+
+pred_incom_roc <- predict(best_model, newdata = test, type = "prob")
+pred_incom_roc %>% as.data.frame() %>% head()
+pred_incom_roc %>% as.data.frame() %>% tail()
+pred_incom_roc <- pred_incom_roc %>% as.data.frame()
+prob <- pred_incom_roc$"1"
+```
+## Evaluar Modelo
+
+```{r evaluacion modelo tuneado ,fig.width=10, fig.height=10}
+
+cm <- confusionMatrix(table(test_data$income, test_data$predictedincome))
+test_data$predictedincome <- as.factor(test_data$predictedincome)
+
+table <- data.frame(confusionMatrix(test_data$income, test_data$predictedincome)$table)
+
+print(cm)
+print(cm$byClass)
+
+plotTable <- table %>%
+  mutate(goodbad = ifelse(table$Prediction == table$Reference, "Good", "Bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+confusionMatrix <- ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = goodbad, alpha = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 25, size = 8) +
+  scale_fill_manual(name = " ", values = c(Good = "#F0FF00", Bad = "#34495E")) +
+  scale_alpha(name = " ") +
+  theme_classic() +
+  xlim(rev(levels(table$Reference))) +
+  scale_y_discrete(name = "Predicted", limits = c("1","0")) + 
+  scale_x_discrete(name = "Actual", position = "top") +
+  #theme(legend.position = " ") +
+  theme(text=element_text(size=25,  family="sans")) + 
+  ggtitle("Confusion Matrix") +
+  theme(plot.title = element_text(size = 25, family="sans", face = "bold"))
+  
+confusionMatrix
+```
+
+## Curva ROC
+
+```{r curva ROC modelo tuneado ,fig.width=7, fig.height=8}
+library(pROC)
+
+ROC <- roc(test_data$income,prob)
+plot(ROC, col = "#fd634b", family = "sans", cex = 2, main = "CART Model ROC Curve 
+AUC = 0.8648")
+auc(ROC)
+```

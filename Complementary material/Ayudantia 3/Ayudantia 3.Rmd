@@ -1,0 +1,107 @@
+---
+title: "Ayudantia 3: Outliers"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Actividad Ayudantia 3
+  Replicar el analisis de outliers, debes elegir uno de los dos csv disponibles (pokemon o titanic) y realizar el analisis con algunas     de las variables numericas y realizar un pequeño analisis en relacion a los datos encontrados como outliers (en caso de que eligas     el csv del titanic solo debes evaluar las columnas AGE y FNLWGT)
+
+
+## Outliers
+   Caso 1:
+```{r cargar y revisar datos}
+library(datasets)
+
+data(package="datasets")
+
+data(rivers)
+
+hist(rivers)
+
+boxplot(rivers, horizontal = TRUE)
+
+boxplot.stats(rivers)
+
+```
+```{r primera limpieza}
+rivers_sinout <- rivers[rivers < 1240]
+
+boxplot(rivers_sinout, horizontal = TRUE)
+
+boxplot.stats(rivers_sinout)
+```
+```{r segunda limpieza}
+rivers_sinout1 <- rivers[rivers < 1100]
+
+boxplot(rivers_sinout1, horizontal = TRUE)
+
+boxplot.stats(rivers_sinout1)
+```
+```{r tercera limpieza}
+rivers_sinout2 <- rivers[rivers < 1054]
+
+boxplot(rivers_sinout2, horizontal = TRUE)
+
+boxplot.stats(rivers_sinout2)
+
+```
+```{r forma alternativa y comprobación}
+rivers_out <- rivers[!rivers %in% boxplot.stats(rivers)$out]
+length(rivers) - length(rivers_out)
+```
+
+Caso 2:
+```{r pokemon}
+library(dplyr)
+
+wd = setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/Ayudantia3")
+
+pk = read.csv("pokemon.csv")
+pk
+#pk123 = filter(pk, pk$Generation %in% c(1, 2, 3))
+#pk123
+
+attach(pk)
+
+att = boxplot(Attack, horizontal = TRUE)
+stats_att = boxplot.stats(Attack)
+
+att
+stats_att
+
+pk1 <- Attack[Attack < 170]
+length(Attack) - length(pk1)
+
+boxplot(pk1, horizontal = TRUE)
+
+att_out <- filter(pk, pk$Attack > 165)
+
+att_out
+
+def = boxplot(Defense, horizontal = TRUE)
+stats_def = boxplot.stats(Defense)
+
+def
+stats_def
+
+pk2 <- Defense[Defense < 160]
+length(Defense) - length(pk2)
+
+boxplot(pk2, horizontal = TRUE)
+
+def_out <- filter(pk, pk$Defense > 159 )
+
+def_out
+```
+
+Caso 3:
+```{r titanic}
+wd = setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/Ayudantia3")
+
+tit = read.csv("titanic.csv")
+```
+
+

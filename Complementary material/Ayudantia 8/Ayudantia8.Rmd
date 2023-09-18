@@ -1,0 +1,289 @@
+---
+title: "Ayudantia 8: Clustering Probabilistico"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Actividad Ayudantia 8: Entrega 28/05
+
+Para esta actividad tendran que utilizar el csv que esta subido de spotify o realizar ustedes un sample de la data del proyecto 2 de al menos 8000 observaciones.
+
+Para dicho dataset tendran que realizar los tres modelos de clustering vistos en la ayudantia y tendran que ejecutar 3 iteraciones del analisis mencionando que modificaron en cada iteracion en la busqueda de mejorar los clusters que se forman.
+
+
+# Ayudantia 8
+
+Para esta ayudantia utilizaremos un dataset que contiene la calidad de diversos vinos que se evaluaron
+
+## Importar Librerias
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(mclust)
+```
+
+Para un primer intento tomaremos todas las variables del dataset, ver que cluster obtenemos y como se comportan los indicadores de cada modelo
+
+## Cargar Datos
+
+```{r}
+setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/Ayudantia8")
+
+wine <- read.csv("winequality-red.csv",sep = ",")
+
+```
+
+## Comprobar Datos NA y Cambiar Tipo Data
+
+```{r}
+wine %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+str(wine)
+
+class <- wine$quality
+
+X <- wine[,1:11]
+head(X)
+```
+## Escalar Data
+
+```{r}
+data_sca <- sapply(X, scale) %>% as_tibble()
+
+clPairs(data_sca,class)
+```
+
+# DBSCAN
+Primer metodo, clustering basado en densidad
+
+```{r, warning = FALSE, message = FALSE}
+library(dbscan)
+
+set.seed(369)
+
+model = dbscan(data_sca, eps = 1, minPts = 6)
+
+model
+
+```
+
+El modelo genera 15 clusters, basado en los parametros que le entregamos a la funcion dbscan.
+
+Veamos que pasa al ir modificando esos valores
+
+# Plot
+
+```{r}
+
+ggplot(data_sca, aes(alcohol, pH, color = factor(model$cluster), size = alcohol)) + 
+  geom_point(alpha = 0.3) 
+
+```
+
+Se puede ver que hay diversos puntos que no quedan asignados a ningun cluster dados los valores escogidos para la distancia minima. 
+
+Otros algoritmos como el c-means permiten asignarle un cluster a todos los puntos
+
+# Fuzzy C Means
+
+```{r}
+library(e1071)
+
+set.seed(369)
+
+modelo_c_means <- cmeans(data_sca,  7, m=2) 
+
+modelo_c_means$membership %>% head()
+
+```
+
+El algoritmo cmeans asigna como cluster al que tenga mayor probabilidad
+
+```{r}
+#Plot
+ggplot(data_sca, aes(alcohol, pH, color = factor(modelo_c_means$cluster), size = alcohol)) + 
+  geom_point(alpha = 0.3) 
+
+```
+
+Para los modelos de clustering difuso podemos calcular el Coeficiente de partición difusa (FPC) 
+
+```{r}
+# FCP
+
+matriz <- modelo_c_means$membership%*%t(modelo_c_means$membership) # producto matricial
+
+(FPC <- sum(matriz*diag(nrow(matriz)))/nrow(matriz))
+```
+
+El valor del FPC es bajo, lo que significa que los grupos tienen alta variabilidad, y se puede confirmar en la figura ya que no se ven grupos definidos.
+
+# GMM
+
+GMM permiten obtener clusters difusos utilizando modelos probabilisticos
+
+```{r}
+library(mclust)
+
+set.seed(369)
+
+model_gmm = Mclust(data_sca)
+
+model_gmm 
+summary(model_gmm, parameters = TRUE)
+
+```
+
+El modelo genero  clusters los que se pueden visualizar igual que los ejemplos anteriores
+
+```{r}
+# Plot
+ggplot(data_sca) + 
+  aes(x=alcohol, y=pH, color=factor(model_gmm$classification)) + 
+  geom_point(alpha=1)
+
+```
+
+```{r}
+fviz_cluster(model_gmm, data_sca, stand = FALSE, frame = FALSE,geom = "point")
+```
+
+El modelo aplicó todas las formas posibles de la matriz de covarianzas, y permite visualizar como evoluciona el BIC a medida que aumentamos el numero de clusters. Esta visualizacion permite ver que la mayoria de los modelos deja de mejorar sobre  clusters
+
+# BIC
+
+```{r}
+plot(model_gmm, what = "BIC")
+```
+
+# Segundo Intento: Seleccionar algunas columnas del df
+
+```{r}
+wine1 <- wine[colnames(wine) %in% c("citric.acid","density", "pH", "sulphates", "alcohol","quality")]
+```
+
+
+## Comprobar Datos NA y Cambiar Tipo Data
+
+```{r}
+
+class1 <- wine1$quality
+
+X1 <- wine1[,1:5]
+head(X1)
+```
+## Escalar Data
+
+```{r}
+data_sca1 <- sapply(X1, scale) %>% as_tibble()
+
+clPairs(data_sca1,class1)
+```
+
+# DBSCAN
+Primer metodo, clustering basado en densidad
+
+```{r, warning = FALSE, message = FALSE}
+library(dbscan)
+
+set.seed(369)
+
+model1 = dbscan(data_sca1, eps = 0.5, minPts = 6)
+
+model1
+
+```
+
+El modelo genera 7 clusters, basado en los parametros que le entregamos a la funcion dbscan.
+
+Veamos que pasa al ir modificando esos valores
+
+# Plot
+
+```{r}
+
+ggplot(data_sca, aes(alcohol, pH, color = factor(model1$cluster), size = alcohol)) + 
+  geom_point(alpha = 0.3) 
+
+```
+
+Se puede ver que hay diversos puntos que no quedan asignados a ningun cluster dados los valores escogidos para la distancia minima. 
+
+Otros algoritmos como el c-means permiten asignarle un cluster a todos los puntos
+
+# Fuzzy C Means
+
+```{r}
+library(e1071)
+
+set.seed(369)
+
+modelo_c_means1 <- cmeans(data_sca1,  4,m=1.5) 
+
+modelo_c_means1$membership %>% head()
+
+```
+
+El algoritmo cmeans asigna como cluster al que tenga mayor probabilidad
+
+```{r}
+#Plot
+ggplot(data_sca1, aes(alcohol, pH, color = factor(modelo_c_means1$cluster), size = alcohol)) + 
+  geom_point(alpha = 0.3) 
+
+```
+
+Para los modelos de clustering difuso podemos calcular el Coeficiente de partición difusa (FPC) 
+
+```{r}
+# FCP
+
+matriz <- modelo_c_means1$membership%*%t(modelo_c_means1$membership) # producto matricial
+
+(FPC <- sum(matriz*diag(nrow(matriz)))/nrow(matriz))
+```
+
+El valor del FPC es bajo, lo que significa que los grupos tienen alta variabilidad, y se puede confirmar en la figura ya que no se ven grupos definidos.
+
+# GMM
+
+GMM permiten obtener clusters difusos pero utilizando modelos probabilisticos
+
+```{r}
+library(mclust)
+
+set.seed(369)
+
+model_gmm1 = Mclust(data_sca1)
+
+model_gmm1 
+summary(model_gmm1, parameters = TRUE)
+
+```
+
+El modelo genero  clusters los que se pueden visualizar igual que los ejemplos anteriores
+
+```{r}
+# Plot
+ggplot(data_sca1) + 
+  aes(x=alcohol, y=pH, color=factor(model_gmm1$classification)) + 
+  geom_point(alpha=1)
+
+```
+
+```{r}
+fviz_cluster(model_gmm1, data_sca1, stand = FALSE, frame = FALSE,geom = "point")
+```
+
+El modelo aplicó todas las formas posibles de la matriz de covarianzas, y permite visualizar como evoluciona el BIC a medida que aumentamos el numero de clusters. Esta visualizacion permite ver que la mayoria de los modelos deja de mejorar sobre  clusters
+
+# BIC
+
+```{r}
+plot(model_gmm1, what = "BIC")
+```

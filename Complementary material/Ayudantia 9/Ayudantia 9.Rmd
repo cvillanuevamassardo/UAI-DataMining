@@ -1,0 +1,288 @@
+---
+title: "Ayudantia 9: Regresion Lineal y Regresion Logistica"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Ayudantia 9 Regresion Lineal y Regresion Logistica
+
+## Cargar Librerias 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(GGally)
+library(regclass)
+library(pROC)
+library(rsample)
+```
+
+## Cargar Datos
+
+```{r}
+setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/Ayudantia9")
+
+audi <- read.csv("audi.csv")
+airbnb <- read.csv("airbnb.csv")
+```
+
+En esta ayudantia veremos los dos modelos de regresion que suelen ser los mas conocidos o que se tiene la costumbre de utilizar en modelos supervisados, para ello se utilizaran dos datasets en esta ayudantia.
+
+## Regresion Lineal
+
+El primero que veremos será un dataset de los autos usados del fabricante Audi (link en bloc de notas), y lo utilizaremos para realizar un analisis   
+
+# Simple (Precio Auto)    
+```{r}
+summary(audi)
+
+audi %>% head()
+```
+
+Este dataset contiene informacion sobre el modelo del auto, año, precio, transmision, kilometraje, mpg (millas por galon), tipo de combustible, impuesto de circulacion, y tamaño del motor. (La data ya esta limpiada en cuanto a datos duplicados y columnas relevantes).
+
+En este analisis lo que buscaremos es predecir el precio al que podriamos vender mi auto en caso de tener un Audi en UK.
+
+Para esto transformamos las variables del modelo, transmision y tipo de combustible, a factores para trabajar con dichos valores como "etiquetas"
+```{r}
+audi$model <- as.factor(audi$model)
+audi$transmission <- as.factor(audi$transmission)
+audi$fuelType <- as.factor(audi$fuelType)
+
+summary(audi)
+```
+Podemos ver que un valor en el tamaño del motor de 0 no tiene mucho sentido por lo que revisaremos cuantas observaciones presentan este este valor, y en caso de haber datos con valor 0 los eliminamos de nuestro dataset
+Corroboramos la existencia de valores na y nulos para ver si es necesario hacer esa limpieza.
+```{r}
+audi %>% filter(engineSize == 0) %>% nrow()
+
+audi <- audi %>%  filter(engineSize != 0)
+
+summary(audi)
+
+sum(is.na(audi))
+sum(is.null(audi))
+
+```
+
+Una vez ya listo nuestro datos, realizamos una visualizacion de nuestro datos numericos, para ver la correlacion que pueda existir entre las variables y la distribucion de los datos. 
+
+```{r, message=FALSE, warning=FALSE}
+audi %>% select(year, mileage, tax, mpg, engineSize, price) %>% 
+  ggpairs(lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5)))
+```
+
+Revisamos como se distribuyen los datos que pasamos a factor en relacion al precio, para esto utilizamos los boxplot lo que tambien nos ayudara a ver si existen valores atipicos que puedan alterar nuestro modelo
+
+```{r}
+audi %>% 
+  ggplot(aes(transmission, price)) +
+  geom_boxplot()
+
+audi %>% 
+  ggplot(aes(fuelType, price)) +
+  geom_boxplot()
+
+audi %>% mutate(model = reorder(model, price)) %>%
+  ggplot(aes(price, model)) +
+  geom_boxplot()
+```
+
+Graficamos las cuatro variables con mayores valores (no consideramos los tax) para ver como se distributen con el precio
+
+```{r}
+audi %>% ggplot(aes(mileage, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+audi %>% ggplot(aes(year, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+audi %>% ggplot(aes(mpg, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+audi %>% ggplot(aes(engineSize, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+
+audi %>% filter(., year >= 2005) %>% ggplot(aes(year, price)) +
+  geom_point(alpha = .1) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k=3))
+```
+
+Escalamos los datos antes de ralizar el analisis de regresion
+
+```{r}
+audi_sca <- audi
+audi_sca[,c(2,3,5,7,8,9)] <- scale(audi_sca[,c(2,3,5,7,8,9)])
+
+audi_sca %>%  head()
+```
+
+Primero veremos el caso de una regresion simple, donde solo consideraremos el kilometraje para predecir el precio de nuesto vhiculo
+
+```{r}
+reg_simp <- lm(price ~ mileage, data = audi)
+summary(reg_simp)
+```
+
+Los resultados de la regresion nos indican que los valores de los parametros son 0.0002949 para el intercepto y -0.2661 para el coeficiente asociado a la variable superficie de terreno.
+
+Tambien se puede observar que el coeficiente de determinacion R2 es de .2851, lo que significa que el 28.5% de la varianza del precio esta explicada por el modelo lineal.
+
+Veamos que pasa ahora al considerar mas variables en nuestro modelo de regresion, para eso consideraremos el modelo, el año, su kilometraje, el tamaño del motor y las millas por galon.
+
+```{r}
+reg_mult <- lm(price ~ model + year*mileage + engineSize + mpg, data = audi_sca)
+summary(reg_mult)
+```
+Los resultados de la regresion multiple no muesstra un coeficiente de determinacion del 88%, y se puede ver que todas las variables son significativas a excepcion de algunos modelos de autos que no tienen significancia para nuestro modelo (por lo que podriamos estudiar si considerar o no esos modelos de audis para nuestro modelo).
+
+Revisamos el valor del facto de inflacion de la varianza, este factor nos permite entender la colinealidad de los datos. 
+
+Un VIF por encima de 4 o una tolerancia por debajo de 0,25 indica que podría existir multicolinealidad y se requiere más investigación.
+
+```{r}
+VIF(reg_mult)
+```
+
+```{r}
+library(olsrr)
+
+fuerza_bruta <- ols_step_all_possible(reg_mult)
+
+plot(fuerza_bruta)
+```
+
+## Regresion Logistica (AirBnb)
+
+Para el segundo modelo que veremos se utilizara un sample de un dataset con informacion sobre las reservas de alojamiento de airbnb, lo que buscaremos con este modelo es deteminar si la reserva puede ser cancelada. Este dataset consta de 32 columnas con diversa informacion como el hotel, si esta cancelada la reserva, el tiempo de espera, el año de arrivo, el mes de arrivo, entre otros...
+
+```{r}
+summary(airbnb)
+airbnb %>% head()
+```
+
+
+```{r}
+glimpse(airbnb)
+
+ggplot(airbnb,aes(x=factor(hotel))) +
+  geom_bar(col ="black",fill="#993333",alpha=0.5) +
+  theme(axis.text.x = element_text(face="bold", size=10)) +
+  scale_x_discrete("Hotel") +
+  scale_y_continuous("Count")
+
+ggplot(airbnb,aes(factor(arrival_date_month,levels=month.name))) +
+  geom_bar(col ="black",fill="#993333",alpha=0.5) +
+  theme(axis.text.x = element_text(face="bold", size=8, angle=30)) +
+  scale_y_continuous("Count",limits = c(0,1500),breaks=seq(0,15000,by=1500)) +
+  scale_x_discrete("Month")
+```
+
+```{r}
+d <- airbnb %>% 
+  group_by(arrival_date_month) %>%
+  count() %>%
+  arrange(match(arrival_date_month,month.name))
+d <- data.frame(ArrivalDateMonth = d$arrival_date_month,N =d$n)
+d
+```
+
+```{r}
+ggplot(data = airbnb,aes(factor(is_canceled)))+
+  geom_bar( col='black', fill="#993333", alpha = 0.5) +
+  facet_wrap(~hotel) +
+  scale_x_discrete("Canceled",labels = c("No","Yes")) +
+  scale_y_continuous("Count",limits = c(0,5000),breaks=seq(0,47222,by=5000))  +
+  theme(axis.text.x = element_text(face="bold", size=10))
+```
+
+```{r}
+canceledRate <- airbnb %>%
+  group_by(Hotel = hotel) %>%
+  summarise(CanceledAverage = mean(is_canceled)) 
+canceledRate <- as.data.frame(canceledRate)
+canceledRate
+```
+
+```{r}
+ggplot(data = airbnb, aes(x = factor(is_canceled), y = lead_time  )) + 
+  geom_boxplot(col='black', fill="#993333", alpha = 0.5) +
+  theme(axis.text.x = element_text(face="bold", size=10)) +
+  scale_y_continuous("Lead Time",limits = c(0,800),breaks=seq(0,800,by=100)) +
+  scale_x_discrete("Canceled",labels = c("No","Yes"))
+```
+
+```{r}
+set.seed(369)
+glm.fit <- glm(is_canceled ~ lead_time, data = airbnb , family = "binomial")
+
+#glm.fit <- glm(is_canceled ~ hotel + lead_time + arrival_date_month + children +
+#                        market_segment + is_repeated_guest + adults + babies +
+#                        previous_cancellations +
+#                        deposit_type + booking_changes  +
+#                        reserved_room_type + adr + days_in_waiting_list + customer_type +
+#                        total_of_special_requests, 
+#                        data = airbnb , family = "binomial")
+summary(glm.fit)
+```
+
+```{r}
+prob <- predict(glm.fit, type = c("response"))
+
+airbnb$prob <- prob
+
+curva_roc <- roc(is_canceled ~ prob, data = airbnb)
+
+plot(curva_roc)
+
+auc(curva_roc)
+```
+
+```{r}
+airbnb$prob <- NULL
+
+modelo_log_multi <- glm(is_canceled ~ hotel + lead_time + is_repeated_guest + previous_cancellations + deposit_type + booking_changes + adr + market_segment + customer_type + total_of_special_requests, airbnb, family = "binomial")
+
+summary(modelo_log_multi)
+```
+
+```{r}
+prob_multi <- predict(modelo_log_multi, type = c("response"))
+
+airbnb$prob_multi <- prob_multi
+
+curva_roc_multi <- roc(is_canceled ~ prob_multi, data = airbnb)
+
+plot(curva_roc_multi)
+
+auc(curva_roc_multi)
+```
+
+
+
+```{r}
+set.seed(369)
+
+data_split <- initial_split(airbnb,
+                            prop = 0.7,
+                            strata = NULL)
+
+train_data <- training(data_split) %>% as.data.frame() 
+test_data <- testing(data_split) %>%  as.data.frame()
+
+modelo_log_multi1 <- glm(is_canceled ~ hotel + lead_time + is_repeated_guest + previous_cancellations + deposit_type + booking_changes + adr + customer_type + total_of_special_requests, train_data, family = "binomial")
+
+summary(modelo_log_multi1)
+```
+
+```{r}
+test_data$prob_multi <- predict(modelo_log_multi1, test_data, type = c("response"))
+auc(roc(is_canceled ~ prob_multi, data = test_data))
+```
+

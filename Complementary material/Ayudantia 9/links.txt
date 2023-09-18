@@ -1,0 +1,5 @@
+Ayudantia9
+
+Audi -> https://www.kaggle.com/adityadesai13/used-car-dataset-ford-and-mercedes
+Wine -> https://www.kaggle.com/uciml/red-wine-quality-cortez-et-al-2009
+AirBnb -> https://www.kaggle.com/jessemostipak/hotel-booking-demand

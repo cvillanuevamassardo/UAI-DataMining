@@ -1,0 +1,185 @@
+---
+title: "Ayudantia 12 SVM"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cargamos las librerias
+
+```{r cargando librerias, message=FALSE}
+library(plyr)
+library(ggplot2)
+library(tidyverse)
+library(tidymodels)
+library(discrim)
+library(caret)
+library(pROC)
+```
+
+## Cargamos los datos
+
+```{r cargando datos}
+setwd("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets")
+
+# adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv")
+
+adult <- read.csv("D:/Users/Italo/Documents/Italo Felipe/UAI/Semestre 11/Ayudantia Mineria de Datos/material ayudantia/DataSets/adult.csv", na.strings = c("","NA"," ","?"))
+```
+
+```{r exploracion1}
+head(adult)
+
+summary(adult)
+```
+
+```{r exploracion2}
+str(adult)
+```
+
+## Transformamos la variable income
+
+```{r transformacion variables}
+#Map 0 to 1 the adult feature
+adult$income <- mapvalues(adult$income, from=c('>50K', '<=50K'), to=c(1,0))
+```
+
+```{r eliminar na}
+adult %>% 
+  summarise_all(funs(sum(is.na(.))))
+
+adult <- adult %>% filter(!(is.na(workclass))) %>% filter(!(is.na(occupation))) %>% filter(!(is.na(native.country)))
+
+adult %>% 
+  summarise_all(funs(sum(is.na(.))))
+```
+
+## Separar data en Test y Train
+
+```{r separar data}
+library(tidymodels)
+
+data_split <- initial_split(adult, prop = 0.7)
+
+# Create data frames for the two sets:
+train_data <- training(data_split) 
+test_data <- testing(data_split)
+
+str(train_data)
+str(test_data)
+
+train_data %>%  nrow()
+test_data %>% nrow()
+```
+
+## Seleccion de Atributos
+
+```{r seleccion atributos}
+train <- subset(train_data, select = - c(relationship, education.num, race, native.country, capital.loss, fnlwgt, hours.per.week, workclass))
+test <- subset(test_data, select = - c(relationship, education.num, race, native.country, capital.loss, fnlwgt, hours.per.week, workclass))
+```
+
+## Implementacion SVM, Creamos Receta de nuestro modelo
+
+```{r receta modelo}
+receta <- 
+  recipe(income ~ ., data = train) %>% 
+  step_naomit(everything(), skip = TRUE) %>% 
+  step_dummy(all_nominal(), -all_outcomes()) %>% 
+  step_normalize(all_numeric(), -all_outcomes()) %>% 
+  step_zv(all_numeric(), -all_outcomes()) %>% 
+  step_corr(all_predictors(), threshold = 0.7, method = "spearman")
+
+receta
+summary(receta)
+
+prep_data <-
+  receta %>% 
+  prep() %>% 
+  juice()
+
+glimpse(prep_data)
+
+``` 
+
+## Creamos nuestro modelo SVM (polinomio grado 1)
+
+```{r modelo svm}
+modelo_svm <- svm_poly(degree = 1) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+
+modelo_svm
+```
+
+## Fiteamos nuestor modelo SVM
+
+```{r fit modelo}
+fit_mod <- function(mod){
+  
+  modelo_fit <- 
+
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train)
+
+model_pred <- 
+  predict(modelo_fit, test, type = "prob") %>% 
+  bind_cols(test) 
+
+return(model_pred %>% 
+  roc_auc(truth = income, .pred_0))
+}
+
+fit_mod(modelo_svm)
+```
+
+
+## Probemos distintos grados para el polinomio
+    Usaremos la funcion utilizada por el profe en la clase
+
+```{r fit grado}
+fit_polySVM <- function(grado){
+  
+  mod <- svm_poly(degree = grado) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train)
+
+model_pred <- 
+  predict(modelo_fit, test, type = "prob") %>% 
+  bind_cols(test) 
+
+return(model_pred %>% 
+  roc_auc(truth = income, .pred_0))
+}
+```
+
+## Grado 1
+
+```{r grado 1}
+fit_polySVM(1)
+```
+
+## Grado 2
+
+```{r grado 2}
+fit_polySVM(2)
+```
+
+## Grado 3 
+
+```{r grado 3}
+fit_polySVM(3)
+```
+

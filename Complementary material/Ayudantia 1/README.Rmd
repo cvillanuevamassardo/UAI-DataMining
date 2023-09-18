@@ -1,0 +1,540 @@
+---
+title: "Ayudantia 1 Data Mining"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Operaciones Básicas en R
+
+## Vectores y Listas
+```{r vectores y lista}
+w<-c(2,34,7,21,14)
+y<-c(1:8)
+z<-11:18
+w
+y
+z
+
+# Listas. Son combinaciones de vectores:
+miLista<-list(antes=y,despues=z)
+miLista
+miLista$antes
+
+# Mostrar por indices:
+z
+z[4]
+
+z[c(1,3,4)]
+v<-c(2,4,6)
+z[v]
+
+# Mostrar lo opuesto:
+z[-c(1,4,7)]
+
+# Despliegue condicional:
+z[z>13 & z<19] # da los valores entre 13 y 19
+
+# o bien condicional a la otra variable
+# (siempre que ambas variables tengan la misma longitud):
+z
+y
+z[y>4 & y<8]
+
+# lo siguiente solo determina el valor de verdad de cada caso
+z>13 & z<19
+```
+
+## Vectores y Matrices
+```{r vectores y matrices}
+# Vectores
+a <- c(1,2,5.3,6,-2,4) # vector numeric0 
+b <- c("one","two","three") #  vector de caracteres
+c <- c(TRUE,TRUE,TRUE,FALSE,TRUE,FALSE) # vector logico
+
+
+length(a) # numero de elementos 
+str(a)    # estructura de un objecto
+class(a)  # clase o tipo de un objecto
+class(b)
+class(c)
+
+z<-c(a,b)       # combina objetos en un vector
+z
+class(z) 
+
+# Matrices
+y<-matrix(1:20, nrow=5,ncol=4)
+y
+
+# otro ejemplo
+valores <- c(14,26,24,68,23,14,56,32,11,9,78,44)
+rnames <- c("F1", "F2","F3")
+cnames <- c("C1", "C2","C3","C4")
+mat <- matrix(valores, nrow=3, ncol=4, byrow=TRUE)
+mat
+
+# seleccionar elementos individuales:
+mat[2,3] 
+mat[,4] # 4th columna 
+mat[3,] # 3a fila
+mat[2:3,1:3] # filas 2,3 de columnas 1,2,3
+
+#agregar filas o columnas:
+
+fila<-c(2,3,7,8)
+columna<-c(11,22,33,44)
+
+mat
+rbind(mat, fila) # combina objectos como columnas
+mat
+mat<-rbind(mat, fila) # combine objects as columns
+mat
+mat<-cbind(mat, columna) # combina objectos como filas
+mat
+
+```
+
+## Operaciones Basicas
+```{r operaciones basicas}
+
+antr<-read.table(header=TRUE,text='
+Sujeto  Tipo  Sexo   Peso    Altura
+1        A      F     46        155
+2	   A	    M     78	  166
+3	   B	    F	    56	  160
+4	   C      M	    80	  180
+5	   G	    M	    67	  172
+6	   C	    F     81        177
+7	   A	    M     72        168
+8	   B	    F     74        170
+9        A	    F     57        160
+10       B	    M     49        157
+')
+
+antr
+Peso
+antr$Peso
+attach(antr)
+Peso
+names(antr)
+str(antr)
+hist(Peso)
+
+plot(Peso,type="l",ylab="Peso")
+
+plot(Peso,Altura)
+
+pairs(antr)
+
+# Operaciones:
+17/2 # division
+17%/%2 # division entera
+17%%2 # residuo
+
+# Se puede operar con vectores comno si fueran escalares:
+
+v<-c(3,54,25,12,8)
+w<-c(4,3,6,7,10)
+v/w # obs.: deben tener el mismo largo
+v%/%w
+v%%w
+log(v)
+exp(-w)
+v^w
+```
+
+## DataFrame
+```{r dataframe}
+Tabla<-read.table(header=TRUE,text='
+Sujeto     Tipo  Rendimiento  Monto Actividades
+23           alfa     109    4032     16
+28		 beta	    45     3200  	 10
+44		 alfa	    82     1290  	 8
+56		 gama     34     3425    10
+75		 alfa	    19      678	 20
+')
+
+# determinar el tipo de variable que contiene:
+str(Tabla)
+
+# editar la tabla:
+tb<-edit(Tabla)
+Tabla
+tb
+
+# Otra forma de crear un Data Frame:
+dd<-data.frame()
+fix(dd) # "arreglar" dd. Abre una hoja. Al cerrarla queda formado el DF 
+dd
+
+# Eliminar columna (en este caso no numerica)
+Tabla<-Tabla[,-2]
+Tabla
+
+# Obtener el indice Rend*Monto/Actividad y agregar al data.frame e imprimir
+attach(Tabla)
+Tabla$Indice<-Rendimiento*Monto/Actividades
+Tabla
+
+# Formar una nueva tabla llamada Tabla1 con la siguiente estructura:
+# Primera columna con numeros de 1 a 5, llamada "Numero". 
+# Agregar las columnas "Rend", "Mont", "Activi" e "Ind". Imprimir.
+Tabla1<-read.table(header=TRUE,text='
+Numero
+1
+2
+3
+4
+5 
+')
+Tabla1
+
+attach(Tabla)
+Tabla1$Rend<-Rendimiento
+Tabla1$Mont<-Monto
+Tabla1$Activ<-Actividades
+Tabla1$Ind<-Tabla$Indice
+
+# agregar otra columna:
+Vector1<-c(3,5,12,8,4)
+Tabla1$Nuevo<-Vector1
+Tabla1
+
+# Tratar de agregar un vector con distinto numero de elementos:
+#Vector2<- c(7,32,6,7,19,7)
+#Tabla1$Otro<-Vector2
+# obs.: tambien se puede usar "cbind" (juntar columnas)
+
+# Al final, agregar una fila con los promedios. 
+# La columna con blancos, debera tener la palabra "Promedios" en la ultima fila. Imprimir.
+
+Promedios<-c("Promedios",mean(Tabla1$Rend),mean(Tabla1$Mont),mean(Tabla1$Activ),mean(Tabla1$Ind),mean(Tabla1$Nuevo))
+Tabla1<-rbind(Tabla1,Promedios)
+Tabla1
+```
+
+## Agrupar y Filtrar Datos
+```{r agrupar y filtrar datos}
+datos<-read.table(header=TRUE,text='
+obs clase soporte tipo config intens sercha
+1 a 2.5 v alta 23 14.9
+2 a 3.2 s baja 42 21.8
+3 b 4.1 s alta 59 16.1
+4 c 2.1 v media 61 17.0
+5 b 6.9 s media 18 11.2
+6 d 3.1 g media 21 18.4
+7 b 7.1 s alta 36 12.9
+8 d 1.2 s baja 61 13.3
+9 a 6.6 g alta 52 22.8
+10 b 5.2 s media 36 19.2
+11 c 6.2 g baja NA 20.0
+12 b 3.7 v alta 42 18.9
+') 
+attach(datos) # permite trabajar con las variables de un data frame (DF) sin referencia la DF
+# Borrar filas con valores nulos (NA)
+datos <- na.omit(datos)
+datos 
+altas <- subset(datos, subset=config=="alta")
+altas
+#obs. Solo un criterio de seleccion. Si se requieren m?s criterios, instalar "dplyr"
+
+#install.packages("dplyr") # Instalar paquete de manipulaci?n de dataframes "dplyr"
+library(dplyr) # Habilitar la librer?a "dplyr"
+
+# Filtrar de datos por filas: (usa dplyr)
+filter(datos, config == "alta", clase== "b") # solo datos con las condiciones dadas
+
+# Ordenar datos por filas en forma ascendente:
+arrange(datos, clase, intens ) # primero por "clase" luego por "intens"
+# descendente: 
+arrange(datos, desc(clase), intens ) # descendente "clase" ascendente "intens" 
+
+# seleccionar columnas y renombrar:
+datos1<-select(datos, configuracion= config, intensidad = intens)
+datos1
+datos1<-rename(datos, con= config, int = intens) # renombrar columnas
+datos1
+
+# seleccionar un rango:
+str(datos) # muestra las caracteristicas del DF
+select(datos, soporte:config) # desde "soporte" a "config"
+select(datos, -(soporte:config)) # excluir 
+
+# Seleccionar y quedarse con las filas de valores no repetidos: 
+distinct(datos, clase) # reporta solo la columna seleccionada con datos distintios 
+distinct(datos, clase, intens) # Solo con pares distintos
+
+# Agrega nuevas columnas a las ya existentes
+mutate(datos, indice = intens - sercha) 
+
+# Crear un nuevo dataframe solo con las columnas nuevas
+transmute(datos,indice = intens - sercha, nuevoTipo = paste("el tipo es ", tipo)) 
+
+# Resumir informacion:
+summarise(datos,delay = mean(soporte, na.rm = TRUE)) # media de la variable "soporte"; no considera los NA
+#datos <- datos %>% mutate(valor = replace(valor, valor == "X", "Nueva"))
+
+```
+
+## Graficos
+
+## Graficos Circulares
+```{r graficos circulares}
+# Leer los datos de una tabla, con una columna adicional. Vehiculos por dia, de lunes a viernes.
+vehiculos<-read.table(header=TRUE,text='
+autos	  camiones	 furgones
+1         2	      4
+3	    5  	4
+6	    4	      6
+4	    5	      6
+9	   12	     16
+')
+
+attach(vehiculos)
+
+# Crear un grafico circular para autos
+pie(autos)
+
+# Agregar nombre, cambiar colores, define rotulos:
+
+pie(autos, main="Autos", col=rainbow(length(autos)),
+   labels=c("Lu","Ma","Mi","Ju","Vi"))
+
+# Cambiar colores, rotulos usando porcentajes, and crear una legenda:
+# Definir algunos colores ideales para impresion en blanco y negro
+colores <- c("white","grey70","grey90","grey50","black")
+   
+# Calcular el porcentaje de cada dia, redondeado a un decimal
+rotulos <- round(autos/sum(autos) * 100, 1)
+
+# Concadenar un simbolo '%' despues de cada valor
+rotulos <- paste(rotulos, "%", sep="")
+
+#dev.new() # abre una nueva ventana grafica para el sigueinte
+# Crear un grafico circular con rotulos y colores definidos
+pie(autos, main="Autos", col=colores, labels=rotulos,
+   cex=0.8)
+
+# Crear una leyenda arriba a la derecha  
+legend(0.9,0.9,cex=0.8,c("Lu","Ma","Mi","Ju","Vi"),fill=colores)
+```
+
+## Graficos de Barra
+```{r graficos de barra}
+vehiculos<-read.table(header=TRUE,text='
+autos	 camiones 	furgones
+1       	2 	4
+3	     5 	4
+6	     4 	6
+4	     5 	6
+9	    12 	16
+')
+attach(vehiculos)
+
+# EJEMPLO 1
+
+barplot(autos)
+  
+# Graficar vehiculos
+# bordes y lineas diagnales en las barras.
+barplot(autos, main="Autos", xlab="Dias",  
+   ylab="Total", names.arg=c("Lu","Ma","Mi","Ju","Vi"), 
+   border="blue", density=c(10,20,30,40,50))
+
+# EJEMPLO 2 COMBINACIONES DE COLORES 
+
+# Graficar vehiculos con barras adyacentes usando diversas paletas de colores
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=rainbow(5))
+   
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=heat.colors(5))
+
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=terrain.colors(5,1))
+
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=terrain.colors(5,0.4))
+
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=topo.colors(5))
+
+barplot(as.matrix(vehiculos), main="Autos", ylab= "Total",
+   beside=TRUE, col=cm.colors(5))
+
+# Poner leyenda en la esquina superior izquierda sin marco  
+legend("topleft", c("Lu","Ma","Mi","Ju","Vi"),cex=0.8)   
+
+legend("topleft", col=cm.colors(5),c("Lu","Ma","Mi","Ju","Vi"),cex=0.8,pch=15)   
+
+# EJEMPLO 3 grafico de barras apilado:  
+
+# Expandir lado derecho del rectangulo para hacer espacio para la leyenda
+par(xpd=T, mar=par()$mar+c(0,0,0,4))
+
+# Graficar vehiculos (transponiendo la matriz) usando "heat colors",  
+# poner 10% del espacio entre cada barra, y hacer rotulos  
+# mas pequennos con eje y-axis horizxontal
+barplot(t(vehiculos), main="Autos", ylab="Total", 
+   col=heat.colors(3), space=0.1, cex.axis=0.8, las=1,
+   names.arg=c("Lu","Ma","Mi","Ju","Vi"), cex=0.8) 
+   
+# Colocar la leyenda en (1,35) usando "heat colors"
+legend(1, 35, names(vehiculos), cex=0.8, fill=heat.colors(3))
+   
+# Restaurar default clipping rect
+par(mar=c(5, 4, 4, 2) + 0.1) 
+```
+
+## Graficos de Linea
+```{r graficos de linea}
+vehiculos<-read.table(header=TRUE,text='
+autos  camiones  furgones
+1        	2    	4
+3	        5     	4
+6	        4     	6
+4	        5	    6
+9	       12	   16
+')
+
+attach(vehiculos) # permite usar las variables por su nombre
+
+# Graficar autos usando un eje y con rango de 0 a 12
+plot(autos, type="o", col="blue",lwd=3, ylim=c(0,12))
+
+# Graficar camiones con linea roja punteada con cuadrados en los puntos
+lines(camiones, type="o",pch=21,bg="blue",lty=6,lwd=3,col="red")
+lines(furgones,type="o",pch=21,bg="green",lty=4,lwd=2,col="orange")
+
+# Crear un titulo en rojo, negrilla/italica
+title(main="Autos", col.main="red", font.main=2)
+
+# Cambiar los rotulos de ejes para coincidir con los datos y agregar una leyenda. 
+# Calcular los valores del eje y para que se adapte a cualquier cambio en los datos. 
+
+# Calcular el rango de 0 a max de autos y camiones
+rango <- range(0, autos, camiones)
+rango
+
+# Graficar autos con eje y que ranguean entre 0 a maximo  valor de autos y camiones. 
+# Quitar ejes y rotulos para poder controlarlos.
+plot(autos, type="o", col="blue", ylim=rango, 
+   axes=FALSE, ann=FALSE) # ann FALSE indica no poner rotulos.
+
+# Cambiar ejes x a Lu-Vi
+axis(1, at=1:5, lab=c("Lu","Ma","Mi","Ju","Vi"))
+
+# Hacer linea vertical que muestre ticks cada 4 marcas. 
+# 4*0:rango[2] es equivalente a c(0,4,8,12).
+axis(2, las=1, at=4*0:rango[2]) # axis 2, eje vertical las??
+
+# Crear caja alrededor del grafico
+box()
+
+# Graficar camiones con linea punteada roja and square points
+lines(camiones, type="o", pch=22, lty=2, col="red")
+
+# Crear titulo en rojo
+title(main="Autos", col.main="red", font.main=4)
+
+# Rotular ejes x e y con verde
+title(xlab="Dias", col.lab=rgb(1,0.0,1))
+title(ylab="Total", col.lab=rgb(0,0.8,0.5))
+
+# Crear leyenda en (1, rango[2]) ligeramente mas peque?o 
+# con los msimos colors de lineas y puntos usados por el grafico 
+
+legend(1, rango[2], c("autos","camiones"), cex=0.8, 
+   col=c("blue","red"), pch=21:22, lty=1:2)
+```
+
+## Graficos de Puntos
+```{r graficos de puntos}
+# Ejemplo 1
+vehiculos<-read.table(header=TRUE,text='
+autos  	camiones 	furgones
+1       	2	 4
+3	     5	 4
+6	     4	 6
+4	     5 	6
+9	    12	 16
+')
+
+# Grafico de puntos de la variable autos:
+dotchart(vehiculos$autos)
+
+# Crear un grafico de puntos para todos los vehiculos
+dotchart(t(vehiculos))
+
+# Un grafico de puntos mas colorido con rotulos mas pequennos:
+dotchart(t(vehiculos), color=c("red","blue","darkgreen"),
+   main="Grafico de puntos para Autos", cex=0.8)
+
+# EJEMPLO 2
+attach(USArrests) # Casos por cada 100.000 habitantes en cada estado de USA, segun asaltos, asesinatos y violaciones.
+
+USArrests
+dotchart(Murder)
+
+dotchart(Murder,labels=row.names(USArrests),cex=0.5)
+# cex=0.5 reduce los tipos a una escala de 0.5
+
+# puntos ordenados por magnitud de la variable "Murder":
+datos2<-USArrests[order(USArrests$Murder),] # ordena los datos segun la variable Murder
+datos2
+
+dotchart(datos2$Murder,labels=row.names(datos2),cex=0.4,main="Arrestos por homicidio segun estado",xlab="Arrestos por cada 100.000 hab")
+
+# agregar colores:
+#colors() # muestra los colores disponibles
+
+dotchart(datos2$Murder,labels=row.names(datos2),cex=0.6,main="Arrestos por homicidio segun estado",
+pch=16, col=c("darkblue","dodgerblue"),lcolor="gray90",xlab="Arrestos por cada 100.000 hab",cex.main=2,cex.lab=1.5)
+
+```
+
+## Histogramas
+```{r histogramas}
+# EJEMPLO 1
+vehiculos<-read.table(header=TRUE,text='
+autos 	camiones 	furgones
+1       	2 	4
+3	     5 	4
+6	     4	 6
+4	     5 	6
+9	    12 	16
+')
+
+# -------------------------
+
+attach(vehiculos)
+
+# Crear un histograma para furgones
+hist(furgones)
+
+# ----------------------------
+
+# Concatenar los tres vectores
+automoviles <- c(autos,camiones,furgones)
+
+# Crear un histograma para automoviles en azul claro con el eje y rangeando ente 0-10
+hist(automoviles, col="lightblue", ylim=c(0,10))
+
+# -----------------------------
+
+# Ahora cambiar los cortes de modo que ninguno de los valores esten agrupados juntos y cambiar las posiciones de los ejes.
+
+# buscar el mayor valor de y usado en los automoviles
+max_num <- max(automoviles)
+max_num
+
+# Crear un histograma para autos con "heat colors", hacer que el eje x ranguee entre
+# 0-max_num, desabilitar cerrado por la derecha de los intervalos, fijar encabezado
+# y poner los rotulos del eje y horizontales.
+hist(automoviles, col=heat.colors(max_num), breaks=max_num, 
+   xlim=c(0,max_num), right=FALSE, main="Histograma de Autos", las=2)
+```
+

@@ -1,0 +1,87 @@
+---
+title: "Librerias R"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Principales Librerias para R
+## Tidyverse
+
+```{r tidiverse}
+library(tidyverse)
+
+# https://www.tidyverse.org/
+# Coleccion de paquetes de R diseñados para data science
+# dplyr
+# ggplot2
+# tidyr
+# readr
+# stringr
+# forcats
+# tibble
+# purrr
+
+```
+
+## Dplyr
+    Principales Funciones 
+
+```{r dplyr}
+library(dplyr)
+
+#help("dplyr")
+
+#select()
+#filter()
+#arrange()
+#mutate()
+#summarise()
+```
+
+## Ggplot2
+    
+```{r ggplot2}
+library(ggplot2)
+
+#help("ggplot2")
+
+# https://rdocumentation.org/packages/ggplot2/versions/3.1.0
+```
+
+## Tidyr
+
+```{r tidyr}
+library(tidyr)
+
+#help("tidyr")
+
+#replace_na()
+#drop_na()
+```
+
+## Forcats
+
+```{r}
+library(forcats)
+library(dplyr)
+library(ggplot2)
+
+#help("forcats")
+
+starwars %>% 
+  filter(!is.na(species)) %>%
+  count(species, sort = TRUE)
+
+ggplot(starwars, aes(x = eye_color)) + 
+  geom_bar() + 
+  coord_flip()
+
+starwars %>%
+  mutate(eye_color = fct_infreq(eye_color)) %>%
+  ggplot(aes(x = eye_color)) + 
+  geom_bar() + 
+  coord_flip()
+```
