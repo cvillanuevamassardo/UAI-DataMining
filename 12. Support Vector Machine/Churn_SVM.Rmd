@@ -1,0 +1,111 @@
+---
+title: "Churn_SVM"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For the chapter on Support Vector Machines we are going to continue using Churn data, or customer leakage. Before loading the data, we invoke the Tidyverse library. After loading the data, we cleaned it up a bit and took a look at it.
+
+```{r, message= FALSE, warning = FALSE}
+#tidymodels
+library(tidyverse)
+
+data <- read_csv("Churn_Modelling.csv") %>% 
+  mutate(is_female = ifelse(Gender == "Female",1,0),
+         Exited = as.factor(Exited)) %>% 
+        select(-RowNumber, -Surname, -Geography, -Gender, -CustomerId) %>% 
+  relocate(Exited)
+ 
+data %>% glimpse()
+```
+
+We are going to implement the SVMs using the tidymodels library, to maintain the syntax that we have used until now.
+
+```{r, message= FALSE, warning=FALSE}
+library(tidymodels)
+library(discrim) 
+set.seed(42)
+data_split <- initial_split(data, prop = 3/4)
+
+# Create data frames for the two sets:
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+
+nrow(test_data)
+train_data %>% nrow()
+```
+
+We are going to create the recipe for the support vector machine, which is the same as the last class.
+
+For the model we use the svm_poly function that allows us to create polynomial kernels. For the linear case it is equivalent to a polynomial of degree 1.
+
+```{r}
+receta <- 
+  recipe(Exited ~ ., data = train_data) 
+
+receta
+
+modelo <- svm_poly(degree = 1) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+
+
+modelo
+```
+
+Now we will test the fitea function that we created last class with this polynomial model of degree 1 (linear)
+
+```{r}
+fitea <- function(mod){
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train_data)
+
+model_pred <- 
+  predict(modelo_fit, test_data, type = "prob") %>% 
+  bind_cols(test_data) 
+
+return(model_pred %>% 
+  roc_auc(truth = Exited, .pred_0))
+}
+
+fitea(modelo)
+```
+
+Now let's modify the fitea function to try different degrees of polynomial, with degree 1, 2 or 3
+
+```{r}
+fitea_polySVM <- function(grado){
+  
+  mod <- svm_poly(degree = grado) %>% 
+  set_engine("kernlab") %>% 
+  set_mode("classification") %>% 
+  translate()
+  
+  modelo_fit <- 
+  workflow() %>% 
+  add_model(mod) %>% 
+  add_recipe(receta) %>% 
+  fit(data = train_data)
+
+model_pred <- 
+  predict(modelo_fit, test_data, type = "prob") %>% 
+  bind_cols(test_data) 
+
+return(model_pred %>% 
+  roc_auc(truth = Exited, .pred_0))
+}
+
+fitea_polySVM(1)
+fitea_polySVM(2)
+fitea_polySVM(3)
+```
+
+We see that the grade 2 model has an AUC of .80, equivalent to that of grade 3
